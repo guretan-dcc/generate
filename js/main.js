@@ -7,6 +7,7 @@ import { HandleStore } from './handleStore.js';
 const output = document.getElementById('output');
 const ignoreHidden = document.getElementById('ignoreHidden');
 const ignoreNodeModules = document.getElementById('ignoreNodeModules');
+const useGitignore = document.getElementById('useGitignore');
 const openButton = document.getElementById('openButton');
 const markdownBuilder = new MarkdownBuilder();
 const handleStore = new HandleStore();
@@ -24,7 +25,9 @@ async function render(handle) {
 	lastHandle = handle;
 	openButton.style.display = 'none';
 	handleStore.save(handle);
-	const treeBuilder = new HandleTreeBuilder(buildIgnoreRules());
+	const treeBuilder = new HandleTreeBuilder(buildIgnoreRules(), {
+		useGitignore: useGitignore.checked
+	});
 	const tree = await treeBuilder.build(handle);
 	output.value = await markdownBuilder.build(tree);
 }
@@ -45,6 +48,7 @@ openButton.addEventListener('click', async () => {
 
 ignoreHidden.addEventListener('change', reRender);
 ignoreNodeModules.addEventListener('change', reRender);
+useGitignore.addEventListener('change', reRender);
 window.addEventListener('focus', reRender);
 document.addEventListener('visibilitychange', () => {
 	if (document.visibilityState === 'visible') reRender();

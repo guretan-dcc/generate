@@ -1,22 +1,37 @@
+import { GitignoreMatcher } from './gitignoreMatcher.js';
+
 export class HandleTreeBuilder {
 	#ignoreRules;
+	#useGitignore;
 
-	constructor(ignoreRules = []) {
+	constructor(ignoreRules = [], { useGitignore = false } = {}) {
 		this.#ignoreRules = ignoreRules;
+		this.#useGitignore = useGitignore;
 	}
 
-	async build(handle) {
+	// gitignoreContexts: 親ディレクトリから引き継いだ { matcher, basePath } の配列
+	// path: 選択したルートからの相対パス
+	async build(handle, gitignoreContexts = [], path = '') {
 		// 単体ファイルの場合は先に返す
 		if(handle.kind ==='file')
 			return this.#buildSingleFile(handle);
 
+		const children = [];
+		for await (const child of handle.values()) children.push(child);
+
+		// このディレクトリの.gitignoreがあれば、ルールとして追加する
+		const contexts = await this.#withLocalGitignore(children, gitignoreContexts, path);
+
 		const items = [];
 
-		for await (const child of handle.values()) {
+		for (const child of children) {
 			if (this.#matchesIgnoreRules(child.name)) continue;
 
+			const childPath = path ? `${path}/${child.name}` : child.name;
+			if (this.#isGitignored(contexts, childPath, child.kind === 'directory')) continue;
+
 			if (child.kind === 'directory') {
-				items.push(await this.build(child));
+				items.push(await this.build(child, contexts, childPath));
 			} else if (child.kind === 'file') {
 				items.push({
 					type: 'file',
@@ -33,6 +48,36 @@ export class HandleTreeBuilder {
 			name: handle.name,
 			children: items
 		};
+	}
+
+	// 直下に.gitignoreがあれば読み込み、引き継いだ一覧の末尾に加えて返す
+	async #withLocalGitignore(children, contexts, path) {
+		if (!this.#useGitignore) return contexts;
+
+		const gitignore = children.find(
+			(child) => child.kind === 'file' && child.name === '.gitignore'
+		);
+		if (!gitignore) return contexts;
+
+		try {
+			const file = await gitignore.getFile();
+			const matcher = new GitignoreMatcher(await file.text());
+			return [...contexts, { matcher, basePath: path }];
+		} catch (e) {
+			console.error('.gitignoreの読み込みエラー', e);
+			return contexts;
+		}
+	}
+
+	// 親から子の順に判定し、最後にマッチした結果を採用する(子の.gitignoreが優先)
+	#isGitignored(contexts, path, isDirectory) {
+		let ignored = false;
+		for (const { matcher, basePath } of contexts) {
+			const relative = basePath ? path.slice(basePath.length + 1) : path;
+			const result = matcher.match(relative, isDirectory);
+			if (result !== null) ignored = result;
+		}
+		return ignored;
 	}
 
 	#matchesIgnoreRules(name) {
