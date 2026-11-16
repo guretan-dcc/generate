@@ -9,6 +9,7 @@ const ignoreHidden = document.getElementById('ignoreHidden');
 const ignoreNodeModules = document.getElementById('ignoreNodeModules');
 const useGitignore = document.getElementById('useGitignore');
 const openButton = document.getElementById('openButton');
+const copyButton = document.getElementById('copyButton');
 const markdownBuilder = new MarkdownBuilder();
 const handleStore = new HandleStore();
 
@@ -44,6 +45,26 @@ openButton.addEventListener('click', async () => {
 		previous ? { startIn: previous } : {}
 	);
 	render(handle);
+});
+
+copyButton.addEventListener('click', async () => {
+	const text = output.value;
+	if (!text) return;
+
+	try {
+		await navigator.clipboard.writeText(text);
+	} catch {
+		// Clipboard APIが使えない環境向けのフォールバック
+		output.select();
+		document.execCommand('copy');
+		output.setSelectionRange(0, 0);
+	}
+
+	const original = copyButton.textContent;
+	copyButton.textContent = 'コピーしました';
+	setTimeout(() => {
+		copyButton.textContent = original;
+	}, 1500);
 });
 
 ignoreHidden.addEventListener('change', reRender);
