@@ -15,8 +15,6 @@ const markdownBuilder = new MarkdownBuilder();
 const handleStore = new HandleStore();
 
 let lastHandle = null;
-let currentMarkdown = '';
-let currentName = 'output';
 
 function buildIgnoreRules() {
 	const rules = [];
@@ -25,31 +23,31 @@ function buildIgnoreRules() {
 	return rules;
 }
 
-async function render(handle) {
+// ドロップ/オープン時はhandleを保持するだけ。中身の読み込み・生成はしない
+function setHandle(handle) {
 	lastHandle = handle;
 	openButton.style.display = 'none';
 	handleStore.save(handle);
+	status.textContent = `対象: ${handle.name}\n「全文コピー」または「MDをダウンロード」を押した時点の内容で生成します`;
+}
+
+// ボタンが押された時だけ、その時点のフォルダ内容とチェック状態でMarkdownを生成する
+async function generateMarkdown() {
 	const treeBuilder = new HandleTreeBuilder(buildIgnoreRules(), {
 		useGitignore: useGitignore.checked
 	});
-	const tree = await treeBuilder.build(handle);
-	currentMarkdown = await markdownBuilder.build(tree);
-	currentName = handle.name || 'output';
-	status.textContent = `読み込み済み: ${currentName}\n(${currentMarkdown.length.toLocaleString()} 文字)\n「MDをダウンロード」または「全文コピー」を使ってください`;
+	const tree = await treeBuilder.build(lastHandle);
+	return markdownBuilder.build(tree);
 }
 
-function reRender() {
-	if (lastHandle) render(lastHandle);
-}
-
-new DropZone(render);
+new DropZone(setHandle);
 
 openButton.addEventListener('click', async () => {
 	const previous = await handleStore.load();
 	const handle = await window.showDirectoryPicker(
 		previous ? { startIn: previous } : {}
 	);
-	render(handle);
+	setHandle(handle);
 });
 
 function flashLabel(button, message) {
@@ -61,14 +59,16 @@ function flashLabel(button, message) {
 }
 
 copyButton.addEventListener('click', async () => {
-	if (!currentMarkdown) return;
+	if (!lastHandle) return;
+
+	const markdown = await generateMarkdown();
 
 	try {
-		await navigator.clipboard.writeText(currentMarkdown);
+		await navigator.clipboard.writeText(markdown);
 	} catch {
 		// Clipboard APIが使えない環境向けのフォールバック(一時的なtextareaを使う)
 		const temp = document.createElement('textarea');
-		temp.value = currentMarkdown;
+		temp.value = markdown;
 		document.body.appendChild(temp);
 		temp.select();
 		document.execCommand('copy');
@@ -78,14 +78,16 @@ copyButton.addEventListener('click', async () => {
 	flashLabel(copyButton, 'コピーしました');
 });
 
-downloadButton.addEventListener('click', () => {
-	if (!currentMarkdown) return;
+downloadButton.addEventListener('click', async () => {
+	if (!lastHandle) return;
 
-	const blob = new Blob([currentMarkdown], { type: 'text/markdown;charset=utf-8' });
+	const markdown = await generateMarkdown();
+
+	const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement('a');
 	link.href = url;
-	link.download = `${currentName}.md`;
+	link.download = `${lastHandle.name || 'output'}.md`;
 	document.body.appendChild(link);
 	link.click();
 	link.remove();
@@ -93,12 +95,3 @@ downloadButton.addEventListener('click', () => {
 
 	flashLabel(downloadButton, 'ダウンロードしました');
 });
-
-ignoreHidden.addEventListener('change', reRender);
-ignoreNodeModules.addEventListener('change', reRender);
-useGitignore.addEventListener('change', reRender);
-window.addEventListener('focus', reRender);
-document.addEventListener('visibilitychange', () => {
-	if (document.visibilityState === 'visible') reRender();
-});
-setInterval(reRender, 60_000);
