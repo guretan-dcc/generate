@@ -4,16 +4,19 @@ import { HandleTreeBuilder } from './handleTreeBuilder.js';
 import { MarkdownBuilder } from './markdownBuilder.js';
 import { HandleStore } from './handleStore.js';
 
-const output = document.getElementById('output');
+const status = document.getElementById('status');
 const ignoreHidden = document.getElementById('ignoreHidden');
 const ignoreNodeModules = document.getElementById('ignoreNodeModules');
 const useGitignore = document.getElementById('useGitignore');
 const openButton = document.getElementById('openButton');
 const copyButton = document.getElementById('copyButton');
+const downloadButton = document.getElementById('downloadButton');
 const markdownBuilder = new MarkdownBuilder();
 const handleStore = new HandleStore();
 
 let lastHandle = null;
+let currentMarkdown = '';
+let currentName = 'output';
 
 function buildIgnoreRules() {
 	const rules = [];
@@ -30,7 +33,9 @@ async function render(handle) {
 		useGitignore: useGitignore.checked
 	});
 	const tree = await treeBuilder.build(handle);
-	output.value = await markdownBuilder.build(tree);
+	currentMarkdown = await markdownBuilder.build(tree);
+	currentName = handle.name || 'output';
+	status.textContent = `読み込み済み: ${currentName}\n(${currentMarkdown.length.toLocaleString()} 文字)\n「MDをダウンロード」または「全文コピー」を使ってください`;
 }
 
 function reRender() {
@@ -47,24 +52,46 @@ openButton.addEventListener('click', async () => {
 	render(handle);
 });
 
+function flashLabel(button, message) {
+	const original = button.textContent;
+	button.textContent = message;
+	setTimeout(() => {
+		button.textContent = original;
+	}, 1500);
+}
+
 copyButton.addEventListener('click', async () => {
-	const text = output.value;
-	if (!text) return;
+	if (!currentMarkdown) return;
 
 	try {
-		await navigator.clipboard.writeText(text);
+		await navigator.clipboard.writeText(currentMarkdown);
 	} catch {
-		// Clipboard APIが使えない環境向けのフォールバック
-		output.select();
+		// Clipboard APIが使えない環境向けのフォールバック(一時的なtextareaを使う)
+		const temp = document.createElement('textarea');
+		temp.value = currentMarkdown;
+		document.body.appendChild(temp);
+		temp.select();
 		document.execCommand('copy');
-		output.setSelectionRange(0, 0);
+		temp.remove();
 	}
 
-	const original = copyButton.textContent;
-	copyButton.textContent = 'コピーしました';
-	setTimeout(() => {
-		copyButton.textContent = original;
-	}, 1500);
+	flashLabel(copyButton, 'コピーしました');
+});
+
+downloadButton.addEventListener('click', () => {
+	if (!currentMarkdown) return;
+
+	const blob = new Blob([currentMarkdown], { type: 'text/markdown;charset=utf-8' });
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = `${currentName}.md`;
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
+	URL.revokeObjectURL(url);
+
+	flashLabel(downloadButton, 'ダウンロードしました');
 });
 
 ignoreHidden.addEventListener('change', reRender);

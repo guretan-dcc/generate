@@ -15,6 +15,7 @@
   <div id="toolbar">
 		<button id="openButton">開く</button>
 		<button id="copyButton">全文コピー</button>
+		<button id="downloadButton">MDをダウンロード</button>
     <label>
       <input type="checkbox" id="ignoreHidden" checked>
       隠しファイル/フォルダを除外
@@ -29,8 +30,8 @@
     </label>
   </div>
  
-  <!-- 生成結果を表示する領域 -->
-  <textarea id="output" readonly placeholder="ファイルまたはフォルダをドラッグ＆ドロップ"></textarea>
+  <!-- 状態を表示する領域(生成結果そのものは表示しない) -->
+  <div id="status">ファイルまたはフォルダをドラッグ＆ドロップ</div>
  
  
 </body>
