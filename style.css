@@ -56,7 +56,47 @@ body {
   white-space: pre-line;
 }
 
-#toolbar button {
+/* フォルダ一覧(縦に並べる) */
+#folderList {
+  flex: 1;
+  width: 100%;
+  list-style: none;
+  overflow-y: auto;
+}
+
+#folderList:empty {
+  display: none;
+}
+
+.folder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 15px;
+  border-bottom: 1px solid #222;
+  font-size: 13px;
+}
+
+.folder .name {
+  flex: 1;
+  min-width: 0;
+  color: #d4d4d4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder .message {
+  color: #a66;
+  font-size: 12px;
+}
+
+#status[hidden] {
+  display: none;
+}
+
+#toolbar button,
+.folder button {
   cursor: pointer;
   background: #111;
   color: #888;
@@ -67,7 +107,8 @@ body {
   font-size: 12px;
 }
 
-#toolbar button:hover {
+#toolbar button:hover,
+.folder button:hover {
   background: #1a1a1a;
   color: #aaa;
 }

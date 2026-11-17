@@ -14,15 +14,14 @@ export class DropZone {
 	}
 
 	async handleDrop(event) {
-		const items = Array.from(event.dataTransfer.items);
+		// dataTransferはawaitをまたぐと無効になるため、先に全件分のhandle取得を同期的に開始する
+		const requests = Array.from(event.dataTransfer.items)
+			.filter((item) => item.kind === 'file') //URL等を除外
+			.map((item) => item.getAsFileSystemHandle());
 
-		for (const item of items) {
-			if (item.kind !== 'file') continue; //URL等を除外
-			const handle = await item.getAsFileSystemHandle();
-			if (!handle) continue;
-
-			this.#onDrop(handle);
-			break;
+		const handles = await Promise.all(requests);
+		for (const handle of handles) {
+			if (handle) await this.#onDrop(handle);
 		}
 	}
 }

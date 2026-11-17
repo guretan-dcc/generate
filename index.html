@@ -14,8 +14,6 @@
   <!-- フィルタ設定を並べる領域 -->
   <div id="toolbar">
 		<button id="openButton">開く</button>
-		<button id="copyButton">全文コピー</button>
-		<button id="downloadButton">MDをダウンロード</button>
     <label>
       <input type="checkbox" id="ignoreHidden" checked>
       隠しファイル/フォルダを除外
@@ -30,7 +28,10 @@
     </label>
   </div>
  
-  <!-- 状態を表示する領域(生成結果そのものは表示しない) -->
+  <!-- 登録したフォルダの一覧(1行ずつ、コピー/ダウンロード/削除ボタン付き) -->
+  <ul id="folderList"></ul>
+
+  <!-- 一覧が空のときの案内 -->
   <div id="status">ファイルまたはフォルダをドラッグ＆ドロップ</div>
  
  
